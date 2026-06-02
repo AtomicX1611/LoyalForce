@@ -1,0 +1,5 @@
+Machine Learning Notebooks
+
+01_data_loading_cleaning_feature_engineering.ipynb
+02_customer_segmentation.ipynb
+03_churn_prediction.ipynb
