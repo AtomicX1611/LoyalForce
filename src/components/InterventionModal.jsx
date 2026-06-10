@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   X,
   AlertTriangle,
@@ -9,8 +9,11 @@ import {
   TrendingDown,
   Star,
   Clock,
+  Loader2,
+  CheckCircle2,
 } from 'lucide-react';
 import clsx from 'clsx';
+import api from '../services/api';
 
 const severityConfig = {
   high: {
@@ -45,16 +48,61 @@ const tierColors = {
   Silver: 'from-slate-400 to-slate-600',
 };
 
-export default function InterventionModal({ member, onClose }) {
+/**
+ * InterventionModal
+ *
+ * Props:
+ *  - member             : normalised customer object from Segments.jsx
+ *  - onClose()          : close handler
+ *  - onCampaignDeployed(memberId) : called after a successful PATCH — lets the
+ *                          parent update its local list optimistically
+ */
+export default function InterventionModal({ member, onClose, onCampaignDeployed }) {
+  const [deploying, setDeploying] = useState(false);
+  const [deployed, setDeployed]   = useState(member?._campaign_status === 'Campaign Active');
+  const [deployError, setDeployError] = useState('');
+
   // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
 
+  // Sync deployed badge when member prop changes (e.g. re-opening same member)
+  useEffect(() => {
+    setDeployed(member?._campaign_status === 'Campaign Active');
+    setDeployError('');
+  }, [member]);
+
   if (!member) return null;
 
   const gradient = tierColors[member.tier] || 'from-slate-400 to-slate-600';
+
+  const handleDeploy = async () => {
+    if (deployed || deploying) return;
+    setDeploying(true);
+    setDeployError('');
+
+    try {
+      await api.patch(`/customers/${member._member_id}/campaign`, {
+        action_title: member.recommendedAction.title,
+        incentive: member.recommendedAction.campaign,
+      });
+
+      setDeployed(true);
+      // Notify parent to update list state
+      onCampaignDeployed?.(member.id);
+
+      // Auto-close after 1.5 s so the user sees the success tick
+      setTimeout(() => onClose(), 1500);
+    } catch (err) {
+      setDeployError(
+        err.response?.data?.detail ?? 'Campaign deploy failed. Please try again.'
+      );
+    } finally {
+      setDeploying(false);
+    }
+  };
 
   return (
     <>
@@ -72,11 +120,11 @@ export default function InterventionModal({ member, onClose }) {
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white font-bold text-lg">
-                {member.name.split(' ').map(n => n[0]).join('')}
+                {member.id?.slice(0, 2).toUpperCase() ?? '??'}
               </div>
               <div>
-                <h2 className="text-lg font-bold leading-tight">{member.name}</h2>
-                <p className="text-white/80 text-sm font-mono">{member.id}</p>
+                <h2 className="text-lg font-bold leading-tight">{member.id}</h2>
+                <p className="text-white/80 text-sm">{member.persona}</p>
               </div>
             </div>
             <button
@@ -112,19 +160,23 @@ export default function InterventionModal({ member, onClose }) {
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Member Activity</h3>
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                <Clock size={14} className="text-slate-400 mx-auto mb-1" />
-                <p className="text-xs text-slate-500">Last Flight</p>
-                <p className="text-sm font-semibold text-slate-800 mt-0.5">{member.lastFlight}</p>
-              </div>
-              <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                <CalendarDays size={14} className="text-slate-400 mx-auto mb-1" />
-                <p className="text-xs text-slate-500">Flights YTD</p>
-                <p className="text-sm font-semibold text-slate-800 mt-0.5">{member.flightsYTD} <span className="text-xs text-slate-400">/ {member.avgFlightsPerYear} avg</span></p>
-              </div>
-              <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
                 <Star size={14} className="text-amber-400 mx-auto mb-1" />
                 <p className="text-xs text-slate-500">Points Balance</p>
-                <p className="text-sm font-semibold text-slate-800 mt-0.5">{(member.pointsBalance / 1000).toFixed(0)}K</p>
+                <p className="text-sm font-semibold text-slate-800 mt-0.5">
+                  {((member.pointsBalance ?? 0) / 1000).toFixed(0)}K
+                </p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
+                <TrendingDown size={14} className="text-rose-400 mx-auto mb-1" />
+                <p className="text-xs text-slate-500">Churn Score</p>
+                <p className="text-sm font-semibold text-slate-800 mt-0.5">{member.churnRisk}%</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
+                <Clock size={14} className="text-slate-400 mx-auto mb-1" />
+                <p className="text-xs text-slate-500">Campaign</p>
+                <p className="text-sm font-semibold text-slate-800 mt-0.5 truncate">
+                  {member._campaign_status === 'Campaign Active' ? 'Active' : 'Idle'}
+                </p>
               </div>
             </div>
           </div>
@@ -137,8 +189,8 @@ export default function InterventionModal({ member, onClose }) {
               <span className="text-xs text-indigo-600 font-medium bg-indigo-50 px-1.5 py-0.5 rounded-full">AI Explained</span>
             </div>
             <div className="space-y-2.5">
-              {member.churnFactors.map((factor, idx) => {
-                const cfg = severityConfig[factor.severity];
+              {(member.churnFactors ?? []).map((factor, idx) => {
+                const cfg = severityConfig[factor.severity] ?? severityConfig.low;
                 const FactorIcon = cfg.icon;
                 return (
                   <div
@@ -154,11 +206,16 @@ export default function InterventionModal({ member, onClose }) {
                           {cfg.label}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">{factor.detail}</p>
+                      {factor.detail && (
+                        <p className="text-xs text-slate-500 leading-relaxed">{factor.detail}</p>
+                      )}
                     </div>
                   </div>
                 );
               })}
+              {(member.churnFactors ?? []).length === 0 && (
+                <p className="text-sm text-slate-400">No churn factors available.</p>
+              )}
             </div>
           </div>
 
@@ -177,11 +234,32 @@ export default function InterventionModal({ member, onClose }) {
                 <p className="text-sm font-semibold text-slate-800">{member.recommendedAction.campaign}</p>
               </div>
 
+              {/* Deploy error */}
+              {deployError && (
+                <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">
+                  ⚠ {deployError}
+                </p>
+              )}
+
+              {/* CTA button */}
               <button
-                className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 text-sm"
+                id={`deploy-campaign-${member.id}`}
+                onClick={handleDeploy}
+                disabled={deploying || deployed}
+                className={clsx(
+                  'w-full font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-md flex items-center justify-center gap-2 text-sm',
+                  deployed
+                    ? 'bg-emerald-500 text-white cursor-default shadow-emerald-200'
+                    : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 disabled:opacity-60 disabled:cursor-not-allowed text-white hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+                )}
               >
-                <Rocket size={15} />
-                {member.recommendedAction.ctaLabel}
+                {deployed ? (
+                  <><CheckCircle2 size={15} /> Campaign Active</>
+                ) : deploying ? (
+                  <><Loader2 size={15} className="animate-spin" /> Deploying…</>
+                ) : (
+                  <><Rocket size={15} /> {member.recommendedAction.ctaLabel}</>
+                )}
               </button>
             </div>
           </div>

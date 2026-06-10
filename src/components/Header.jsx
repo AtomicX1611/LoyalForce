@@ -1,8 +1,9 @@
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, LogOut } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const pageTitles = {
-  '/': { title: 'Dashboard', subtitle: 'Loyalty health at a glance — Last updated 2 minutes ago' },
+  '/': { title: 'Dashboard', subtitle: 'Loyalty health at a glance' },
   '/segments': { title: 'Segment Explorer', subtitle: 'Drill into at-risk member groups and trigger interventions' },
   '/campaigns': { title: 'Campaigns', subtitle: 'Active and scheduled loyalty campaigns' },
   '/settings': { title: 'Settings', subtitle: 'Configure your workspace and integrations' },
@@ -10,7 +11,13 @@ const pageTitles = {
 
 export default function Header() {
   const location = useLocation();
+  const { user, logout } = useAuth();
   const page = pageTitles[location.pathname] || pageTitles['/'];
+
+  // Derive initials from email (e.g. "manager@nlair.com" → "MA")
+  const initials = user?.email
+    ? user.email.split('@')[0].slice(0, 2).toUpperCase()
+    : '??';
 
   return (
     <header className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
@@ -36,16 +43,26 @@ export default function Header() {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
         </button>
 
-        {/* Tenant badge */}
+        {/* Tenant / user badge */}
         <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold">
-            SM
+            {initials}
           </div>
           <div className="hidden lg:block">
-            <p className="text-sm font-semibold text-slate-800 leading-tight">Sarah Mitchell</p>
-            <p className="text-xs text-slate-500">Northern Lights Air</p>
+            <p className="text-sm font-semibold text-slate-800 leading-tight">{user?.email ?? '—'}</p>
+            <p className="text-xs text-slate-500">{user?.tenant_id ?? '—'}</p>
           </div>
         </div>
+
+        {/* Logout */}
+        <button
+          id="header-logout"
+          onClick={logout}
+          title="Sign out"
+          className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 hover:bg-rose-50 hover:border-rose-200 transition-colors group"
+        >
+          <LogOut size={15} className="text-slate-500 group-hover:text-rose-500 transition-colors" />
+        </button>
       </div>
     </header>
   );
