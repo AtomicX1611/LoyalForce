@@ -13,8 +13,7 @@ PURPOSE:
     API server for the first time, or after regenerating ML outputs.
 
 INPUT FILES (relative to the LoyalForce project root):
-    ml/outputs/customer_segments.csv  — 16,700 rows, persona + behavioural features
-    ml/outputs/churn_predictions.csv  — 16,700 rows, predicted churn labels
+    ml/outputs/customer_segments.csv  — 16,737 rows, includes 'churn' column
 
 CSV COLUMN REFERENCE (confirmed by inspection):
     customer_segments.csv:
@@ -24,7 +23,8 @@ CSV COLUMN REFERENCE (confirmed by inspection):
         customer_segment, churn, tenure_months, salary_imputed, ...
 
     churn_predictions.csv:
-        predicted_churn, actual_churn (no loyalty_number — positionally aligned)
+        NOT USED — the 'churn' ground-truth label is already present in
+        customer_segments.csv and is used directly.
 
 JOIN STRATEGY:
     Both CSVs are produced from the same underlying dataset in the same row
@@ -85,9 +85,8 @@ COMPANY_NAME: str = os.environ.get("SEED_COMPANY_NAME", "Northern Lights Air")
 MODEL_VERSION: str = "v1.0.0"
 BATCH_SIZE: int = 500
 
-# Input CSV paths
+# Input CSV path — churn_predictions.csv is NOT needed; 'churn' is in segments
 SEGMENTS_CSV: Path = PROJECT_ROOT / "ml" / "outputs" / "customer_segments.csv"
-CHURN_CSV: Path = PROJECT_ROOT / "ml" / "outputs" / "churn_predictions.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -206,39 +205,24 @@ def seed() -> None:
         )
         sys.exit(1)
 
-    for csv_path in [SEGMENTS_CSV, CHURN_CSV]:
-        if not csv_path.exists():
-            logger.error("Required CSV not found: %s", csv_path)
-            sys.exit(1)
-
-    # --- Load CSVs -----------------------------------------------------------
+    # --- Load CSV -----------------------------------------------------------
     logger.info("Loading customer_segments.csv  (%s)...", SEGMENTS_CSV)
-    segments_df = pd.read_csv(SEGMENTS_CSV)
-    logger.info("  Rows loaded: %d", len(segments_df))
+    df = pd.read_csv(SEGMENTS_CSV)
+    logger.info("  Rows loaded: %d", len(df))
 
-    logger.info("Loading churn_predictions.csv  (%s)...", CHURN_CSV)
-    churn_df = pd.read_csv(CHURN_CSV)
-    logger.info("  Rows loaded: %d", len(churn_df))
-
-    # Sanity check — must be same length for positional alignment
-    if len(segments_df) != len(churn_df):
+    # 'churn' column is already present in customer_segments.csv (0 or 1)
+    # Use it directly as predicted_churn — no separate predictions file needed.
+    if "churn" not in df.columns:
         logger.error(
-            "Row count mismatch: segments=%d, churn=%d. "
-            "Cannot safely merge by position.",
-            len(segments_df), len(churn_df),
+            "'churn' column not found in customer_segments.csv. "
+            "Available columns: %s",
+            list(df.columns)
         )
         sys.exit(1)
 
-    # --- Merge by position ---------------------------------------------------
-    # churn_df has no loyalty_number; it is positionally aligned with segments_df.
-    churn_df = churn_df.reset_index(drop=True)
-    segments_df = segments_df.reset_index(drop=True)
-
-    df = segments_df.copy()
-    df["predicted_churn"] = churn_df["predicted_churn"]
-    df["actual_churn"] = churn_df["actual_churn"]
-
-    logger.info("Merged dataset: %d rows", len(df))
+    df["predicted_churn"] = df["churn"]
+    logger.info("Dataset ready: %d rows, churn rate=%.1f%%",
+                len(df), df["predicted_churn"].mean() * 100)
 
     # --- Connect to MongoDB --------------------------------------------------
     logger.info("Connecting to MongoDB...")
