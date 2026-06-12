@@ -17,14 +17,17 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
+import joblib
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db.client import close_mongo_connection, connect_to_mongo
-from app.routers import auth, customers, dashboard, predict
+from app.routers import auth, campaigns, customers, dashboard, predict
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -67,16 +70,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # --- Step 1: Database ----------------------------------------------------
     await connect_to_mongo(app)
 
-    # --- Step 2: ML Model (Phase 3 hook) ------------------------------------
-    # The model slot is initialised to None here. Phase 3 will replace this
-    # block with joblib.load() wrapped in run_in_threadpool so the I/O-heavy
-    # load does not block the event loop during startup.
-    app.state.ml_model = None
-    logger.info(
-        "ML model slot initialised (None). "
-        "Phase 3 will load '%s' here.",
-        settings.MODEL_PATH,
-    )
+    # --- Step 2: ML Model -------------------------------------------------------
+    # Load the .joblib artifact in a thread pool so the blocking I/O does not
+    # stall the async event loop during startup.
+    model_path = Path(settings.MODEL_PATH)
+    if model_path.exists():
+        artifact = await run_in_threadpool(joblib.load, str(model_path))
+        app.state.ml_model = artifact["model"]
+        app.state.ml_feature_names = artifact["feature_names"]
+        logger.info(
+            "ML model loaded from '%s' (features: %s)",
+            model_path,
+            artifact["feature_names"],
+        )
+    else:
+        app.state.ml_model = None
+        app.state.ml_feature_names = []
+        logger.warning(
+            "MODEL_PATH '%s' not found — /predict/what-if will return 503. "
+            "Run: py scripts/train_and_export.py",
+            model_path,
+        )
 
     logger.info("Startup complete. Ready to serve requests.")
 
@@ -131,6 +145,7 @@ def create_app() -> FastAPI:
     application.include_router(auth.router, prefix="/api")
     application.include_router(dashboard.router, prefix="/api")
     application.include_router(customers.router, prefix="/api")
+    application.include_router(campaigns.router, prefix="/api")
     application.include_router(predict.router, prefix="/api")
 
     # --- Health check --------------------------------------------------------

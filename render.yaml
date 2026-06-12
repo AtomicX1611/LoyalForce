@@ -1,0 +1,48 @@
+# render.yaml — Render deployment specification for LoyalForce backend
+#
+# HOW TO USE:
+#   1. Push this repo to GitHub.
+#   2. Go to https://render.com → New → Web Service → connect your repo.
+#   3. Render will auto-detect this file and use these settings.
+#   4. Set the environment variables listed under envVars in the Render dashboard.
+#      (Do NOT commit your real secrets to Git.)
+#
+# IMPORTANT: Set these env vars in Render dashboard (mark as "secret"):
+#   MONGO_URI              — your MongoDB Atlas connection string
+#   JWT_SECRET             — the secret key from backend/.env
+#   ALLOWED_CORS_ORIGINS   — https://your-app.vercel.app (add after Vercel deploy)
+
+services:
+  - type: web
+    name: loyalforce-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free  # upgrade to starter for no spin-down
+
+    # Health check — Render will restart if this fails
+    healthCheckPath: /health
+
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: JWT_ALGORITHM
+        value: "HS256"
+      - key: JWT_EXPIRE_MINUTES
+        value: "480"
+      - key: MODEL_PATH
+        value: "./ml_artifacts/loyalty_model.joblib"
+      - key: SEED_TENANT_ID
+        value: "northern_lights_air"
+      - key: SEED_COMPANY_NAME
+        value: "Northern Lights Air"
+      # ── Set these in Render dashboard (not here) ──────────────────────────
+      - key: MONGO_URI
+        sync: false   # tells Render this must be set manually (secret)
+      - key: JWT_SECRET
+        sync: false
+      - key: ALLOWED_CORS_ORIGINS
+        sync: false

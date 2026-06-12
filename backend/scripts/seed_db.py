@@ -303,13 +303,22 @@ def seed() -> None:
                     "assigned_persona": persona,
                     "model_version": MODEL_VERSION,
                     "xai_factors": xai_factors,
-                    # Raw features stored for Phase 3 live inference
+                    # Raw features — ALL 11 model features stored for live What-If inference
                     "features": {
+                        "salary_imputed": float(row.get("salary_imputed", 0.0)),
+                        "clv": clv,
+                        "total_flights": total_flights,
+                        "total_distance": float(row.get("total_distance", 0.0)),
+                        "total_points_accumulated": float(points_balance),
+                        "total_points_redeemed": float(points_redeemed),
+                        "active_months": float(row.get("active_months", 0.0)),
                         "avg_flights_per_month": avg_flights,
                         "points_redemption_ratio": redemption_ratio,
+                        "distance_per_flight": float(row.get("distance_per_flight", 0.0)) if not pd.isna(row.get("distance_per_flight", 0.0)) else 0.0,
+                        "tenure_months": float(row.get("tenure_months", 0.0)),
+                        # Extra fields used by predict.py delta logic
                         "recency_months": recency,
-                        "total_flights": total_flights,
-                        "points_redeemed": points_redeemed,
+                        "points_redeemed": float(points_redeemed),
                         "predicted_churn_label": predicted_churn,
                     },
                 },

@@ -12,8 +12,8 @@ env/
 # Environment secrets — NEVER commit the real .env
 .env
 
-# ML model artifacts (large binary — managed separately)
-ml_artifacts/*.joblib
+# ML model artifacts — .joblib IS committed so Render can deploy it (19 MB)
+# .pkl files are still ignored (intermediate artefacts only)
 ml_artifacts/*.pkl
 
 # IDE
