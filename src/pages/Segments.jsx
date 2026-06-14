@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Filter, SlidersHorizontal, Search, Users, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { SlidersHorizontal, Search, Users, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import MemberTable from '../components/MemberTable';
 import InterventionModal from '../components/InterventionModal';
 import api from '../services/api';
@@ -43,9 +44,11 @@ function normalizeCustomer(doc) {
   // Map XAI factor strings into the badge format the modal expects
   const xaiFactors = doc.analytics?.xai_factors ?? [];
   const churnFactors = xaiFactors.map((f, i) => ({
-    label: f,
+    // Safely coerce to string — Pydantic v2 validation errors have shape
+    // { type, loc, msg, input } which would crash React if rendered as a child
+    label: typeof f === 'string' ? f : (f?.msg ?? JSON.stringify(f)),
     severity: i === 0 ? 'high' : i === 1 ? 'medium' : 'low',
-    detail: '',  // backend doesn't provide sub-detail text; label is self-contained
+    detail: '',
   }));
 
   const persona = doc.analytics?.assigned_persona ?? 'Unknown';
@@ -86,11 +89,14 @@ function SkeletonRow() {
 }
 
 export default function Segments() {
+  const location = useLocation();
+
   const [customers, setCustomers]     = useState([]);
   const [total, setTotal]             = useState(0);
   const [page, setPage]               = useState(1);
   const [selectedPersona, setSelectedPersona] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  // Pre-populate search if navigated here from the Header search bar
+  const [searchQuery, setSearchQuery] = useState(location.state?.search ?? '');
   const [selectedMember, setSelectedMember]   = useState(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState('');

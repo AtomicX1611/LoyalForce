@@ -24,12 +24,17 @@ export default function Login() {
       return;
     }
     setLoading(true);
-    const result = await login(email.trim(), airlineId.trim());
-    if (!result.success) {
-      setError(result.message);
+    try {
+      const result = await login(email.trim(), airlineId.trim());
+      if (!result.success) {
+        setError(result.message || 'Sign in failed. Please try again.');
+      }
+      // On success, AuthContext navigates to "/" automatically.
+    } catch {
+      setError('Network error — could not reach the server. Please try again.');
+    } finally {
       setLoading(false);
     }
-    // On success, AuthContext navigates to "/" automatically.
   };
 
   return (

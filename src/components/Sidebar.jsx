@@ -1,13 +1,12 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
   Megaphone,
   Plane,
-  Bell,
-  Settings,
-  ChevronDown,
+  LogOut,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -15,11 +14,14 @@ const navItems = [
   { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
 ];
 
-const secondaryItems = [
-  { to: '/settings', label: 'Settings', icon: Settings },
-];
-
 export default function Sidebar() {
+  const { user, logout } = useAuth();
+
+  // Derive initials from the logged-in email (e.g. "mgr@nlair.com" → "MG")
+  const initials = user?.email
+    ? user.email.split('@')[0].slice(0, 2).toUpperCase()
+    : 'LF';
+
   return (
     <aside className="w-60 shrink-0 flex flex-col bg-white border-r border-slate-200 h-screen sticky top-0">
       {/* Logo / Tenant */}
@@ -28,7 +30,7 @@ export default function Sidebar() {
           <Plane size={16} className="text-white -rotate-45" />
         </div>
         <div>
-          <p className="text-sm font-700 text-slate-900 leading-tight font-bold">Northern Lights Air</p>
+          <p className="text-sm font-bold text-slate-900 leading-tight">Northern Lights Air</p>
           <p className="text-xs text-slate-500 leading-tight">Loyalty Analytics</p>
         </div>
       </div>
@@ -65,47 +67,26 @@ export default function Sidebar() {
             )}
           </NavLink>
         ))}
-
-        <div className="pt-4">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest px-2 mb-2">System</p>
-          {secondaryItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group ${
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    size={16}
-                    className={`transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}
-                  />
-                  {label}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </div>
       </nav>
 
-      {/* User profile */}
+      {/* User profile — shows real logged-in email + role, with logout */}
       <div className="px-3 py-4 border-t border-slate-200">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors group">
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-50">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            SM
+            {initials}
           </div>
           <div className="flex-1 text-left min-w-0">
-            <p className="text-sm font-semibold text-slate-800 truncate">Sarah Mitchell</p>
+            <p className="text-xs font-semibold text-slate-800 truncate">{user?.email ?? 'manager@airline.com'}</p>
             <p className="text-xs text-slate-500 truncate">Marketing Manager</p>
           </div>
-          <ChevronDown size={14} className="text-slate-400 shrink-0" />
-        </button>
+          <button
+            onClick={logout}
+            title="Sign out"
+            className="shrink-0 text-slate-400 hover:text-rose-500 transition-colors"
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
       </div>
     </aside>
   );

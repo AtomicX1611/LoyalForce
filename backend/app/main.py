@@ -132,9 +132,12 @@ def create_app() -> FastAPI:
 
     # --- CORS ----------------------------------------------------------------
     # Origins are read from ALLOWED_CORS_ORIGINS in .env — never hardcoded.
+    # allow_origin_regex also covers all *.vercel.app preview deployments
+    # so that Vercel preview branches work without updating the env var.
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "Accept"],
