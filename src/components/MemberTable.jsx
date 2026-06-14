@@ -50,11 +50,11 @@ export default function MemberTable({ members, onRowClick }) {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-700 font-semibold text-xs shrink-0">
-                        {member.name.split(' ').map(n => n[0]).join('')}
+                        {(member.id ?? '??').slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">{member.name}</p>
-                        <p className="text-xs text-slate-400 font-mono">{member.id}</p>
+                        <p className="font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors font-mono">{member.id}</p>
+                        <p className="text-xs text-slate-400">{member.persona}</p>
                       </div>
                     </div>
                   </td>

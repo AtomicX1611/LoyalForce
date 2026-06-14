@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Megaphone, Play, Pause, Clock, Users,
   Loader2, CheckCircle2, AlertCircle, RefreshCw,
@@ -173,7 +173,7 @@ export default function Campaigns() {
 
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
-  function fetchCampaigns() {
+  const fetchCampaigns = useCallback(() => {
     setLoading(true);
     setError('');
     api.get('/campaigns', { params: { page, limit: LIMIT } })
@@ -183,9 +183,9 @@ export default function Campaigns() {
       })
       .catch(() => setError('Could not load campaigns. Is the backend running?'))
       .finally(() => setLoading(false));
-  }
+  }, [page]);
 
-  useEffect(() => { fetchCampaigns(); }, [page]);
+  useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
 
   const totalCount = SHOWCASE_CAMPAIGNS.length + total;
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Users, DollarSign, AlertOctagon, Loader2 } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import PointsChart from '../components/PointsChart';
@@ -147,12 +148,12 @@ export default function Dashboard() {
             )}
           </div>
 
-          <a
-            href="/segments"
+          <Link
+            to="/segments"
             className="mt-4 w-full text-center text-sm text-indigo-600 font-semibold hover:text-indigo-800 block pt-3 border-t border-slate-100 transition-colors"
           >
             View all at-risk members →
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -170,12 +171,12 @@ export default function Dashboard() {
               Deploying targeted retention campaigns can meaningfully recover predicted CLV.
             </p>
           </div>
-          <a
-            href="/segments"
+          <Link
+            to="/segments"
             className="shrink-0 ml-6 bg-white text-indigo-700 font-bold text-sm px-5 py-3 rounded-xl hover:bg-indigo-50 transition-colors shadow-md"
           >
             Explore Segments
-          </a>
+          </Link>
         </div>
       </section>
 
